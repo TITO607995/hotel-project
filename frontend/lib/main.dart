@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/pages/dashboard.dart';
+import 'package:frontend/pages/room_page.dart';
 import 'pages/login_page.dart';
 
 void main() {
@@ -9,6 +10,7 @@ void main() {
     routes: {
       '/login': (context) => LoginPage(),
       '/dashboard': (context) => const DashboardPage(),
+      '/room': (context) => const RoomPage(),
     },
   ));
 }

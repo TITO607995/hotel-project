@@ -17,6 +17,8 @@ return new class extends Migration
         $table->integer('price');
         $table->string('image')->nullable(); // Tambahkan ini untuk foto kamar
         $table->enum('status', ['Available', 'Booked', 'Cleaning', 'oo', 'os'])->default('Available');
+        $table->string('visibility_mode')->default('Public'); // Default Public
+        $table->text('visibility_description')->nullable(); // Untuk alasan FO
         $table->timestamps();
     });
 

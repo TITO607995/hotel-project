@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/pages/data_reservasi_page.dart';
+import 'package:frontend/pages/registration_page.dart';
+import 'package:frontend/pages/reservation_page.dart';
+import 'package:frontend/pages/room_page.dart';
 import '../widgets/sidebar.dart';
-import 'room_page.dart'; // Import untuk navigasi
+import '../widgets/header.dart';
+import '../models/room_model.dart';
+import '../services/api_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -11,84 +17,113 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   String _currentView = "dashboard";
+  List<Room> _rooms = [];
+  List<dynamic> _stats = []; 
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  void _fetchData() async {
+    try {
+      final response = await ApiService().getDashboardStats(); 
+      setState(() {
+        _rooms = (response['rooms'] as List).map((e) => Room.fromJson(e)).toList();
+        _stats = response['stats']; 
+        _isLoading = false;
+      });
+    } catch (e) {
+      print("Error Dashboard: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // LOGIKA STATUS KIRI (Time & Guarantee Based)
+  String _getLeftStatus(Room room) {
+    int currentHour = DateTime.now().hour;
+    String status = room.status.toLowerCase();
+
+    // 1. Tentukan Garansi berdasarkan "Centang" (isPaid)
+    // Jika sudah bayar/centang = Guaranteed. Jika belum = Non-Garansi.
+    bool isGuaranteed = room.isPaid; 
+    bool isCheckIn = status == 'occupied' || status == 'terisi';
+
+    // A. JIKA SUDAH REGISTRASI (CHECK-IN)
+    if (isCheckIn) {
+      // Logika Dirty (Jam 12:00 - 13:59)
+      if (currentHour >= 12 && currentHour < 14) return "Dirty";
+      
+      // Setelah jam 14:00 Dirty hilang, jadi In-house
+      return "Occupied In-house"; 
+    } 
+
+    // B. JIKA MASIH BOOKING
+    if (status == 'booking') {
+      if (isGuaranteed) {
+        // Garansi: Hak In-house melekat (Booked In-house)
+        return "Booked In-house"; 
+      } else {
+        // Non-Garansi: Status Booked biasa
+        // Jika sudah masuk area "tengah malam" (00:00 - 06:00) belum bayar, siap cancel
+        if (currentHour >= 0 && currentHour < 6) {
+          return "Booked (Pending Cancel)"; 
+        }
+        return "Booked";
+      }
+    }
+
+    return "-";
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Row(
         children: [
-          // 1. Sidebar Kiri (Konsisten dengan RoomPage)
           Sidebar(
             currentView: _currentView,
             onViewChanged: (view) {
-              if (view == "room_data") {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const RoomPage()));
-              } else {
-                setState(() => _currentView = view);
+              if (view == "dashboard") {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardPage()));
+              } 
+              // Navigasi ke sub-menu Reservasi
+              else if (view == "reservasi_create") {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ReservasiPage()));
+              } 
+              else if (view == "reservasi_checkin") {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RegistrasiPage()));
+              } 
+              else if (view == "reservasi_data") {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DataReservasiPage()));
+              }
+              // Navigasi ke menu Kamar
+              else if (view.startsWith("room_")) {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RoomPage()));
               }
             },
           ),
-
-          // 2. Konten Utama
           Expanded(
             child: Container(
-              color: const Color(0xFFF5F5F5), // Background abu-abu muda Figma
+              color: const Color(0xFFE5E5E5),
               child: Column(
                 children: [
-                  _buildHeader(),
+                  const Header(), 
                   Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(30),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Ringkasan Hotel Hari Ini",
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 20),
-                          
-                          // Statistik Berdasarkan 38 Kamar yang Kita Buat
-                          Row(
+                    child: _isLoading 
+                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF8B0000)))
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                          child: Column(
                             children: [
-                              _buildStatCard("Total Kamar", "38", Colors.blue),
-                              const SizedBox(width: 15),
-                              _buildStatCard("Tersedia", "38", Colors.green),
-                              const SizedBox(width: 15),
-                              _buildStatCard("Perlu Maintenance (OO/OS)", "0", Colors.orange),
+                              _buildStatCardsRow(),
+                              const SizedBox(height: 30),
+                              _buildRoomTableSection(),
                             ],
                           ),
-                          
-                          const SizedBox(height: 40),
-                          const Text(
-                            "Akses Cepat Menu",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Grid Menu dengan Desain Lebih Modern
-                          GridView.count(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisCount: 3, // Diubah jadi 3 agar lebih pas di layar laptop
-                            crossAxisSpacing: 20,
-                            mainAxisSpacing: 20,
-                            children: [
-                              _buildMenuCard(Icons.bed, "Manajemen Kamar", () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => const RoomPage()));
-                              }),
-                              _buildMenuCard(Icons.book_online, "Reservasi Tamu", () {}),
-                              _buildMenuCard(Icons.people, "Data Pengunjung", () {}),
-                              _buildMenuCard(Icons.price_check, "Setting Harga", () {}),
-                              _buildMenuCard(Icons.build, "Status OO/OS", () {}),
-                              _buildMenuCard(Icons.logout, "Keluar Sistem", () {
-                                Navigator.pushReplacementNamed(context, '/login');
-                              }),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
                   ),
                 ],
               ),
@@ -99,25 +134,108 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // Header Sesuai Figma image_f0e0db.png
-  Widget _buildHeader() {
+  Widget _buildStatCardsRow() {
+    return Row(
+      children: _stats.map((item) {
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: _buildTypeStatCard("Kamar ${item['type']}", item['total'], item['sisa']),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildTypeStatCard(String title, int total, int sisa) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
-      color: Colors.white,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(35),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))],
+      ),
+      child: Column(
         children: [
-          
+          Text(title, style: const TextStyle(color: Color(0xFF8B0000), fontSize: 18, fontWeight: FontWeight.bold)),
+          Text("$total", style: const TextStyle(color: Color(0xFF8B0000), fontSize: 50, fontWeight: FontWeight.bold)),
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.school, color: Colors.blue, size: 35),
-              const SizedBox(width: 10),
-              const Icon(Icons.hotel, color: Color(0xFF8B0000), size: 35),
-              const SizedBox(width: 20),
-              const CircleAvatar(
-                backgroundColor: Colors.pinkAccent,
-                child: Icon(Icons.person, color: Colors.white),
+              const Text("kamar sisa", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(color: const Color(0xFF8B0000), borderRadius: BorderRadius.circular(15)),
+                child: Text("$sisa", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoomTableSection() {
+    final filteredRooms = _rooms.where((r) => r.status.toLowerCase() != 'available').toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Daftar Aktivitas Kamar", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          Table(
+            columnWidths: const {
+              0: FlexColumnWidth(1), 1: FlexColumnWidth(1.2), 2: FlexColumnWidth(1.5), 
+              3: FlexColumnWidth(1.5), 4: FlexColumnWidth(1), 5: FlexColumnWidth(1.2), 6: FlexColumnWidth(1.2),
+            },
+            children: [
+              TableRow(
+                decoration: BoxDecoration(color: Colors.grey[200]),
+                children: const [
+                  _TableCell(text: "Room No", isHeader: true),
+                  _TableCell(text: "Type", isHeader: true),
+                  _TableCell(text: "Status", isHeader: true),
+                  _TableCell(text: "Reservasi", isHeader: true),
+                  _TableCell(text: "Payment", isHeader: true),
+                  _TableCell(text: "", isHeader: true),
+                  _TableCell(text: "Visibility", isHeader: true),
+                ],
+              ),
+              ...filteredRooms.map((room) {
+                bool isMaintenance = room.status.toLowerCase() == 'oo' || room.status.toLowerCase() == 'os';
+                return TableRow(
+                  children: [
+                    _TableCell(text: room.roomNumber),
+                    _TableCell(text: room.type),
+                    _TableCell(text: _getLeftStatus(room)), 
+                    _TableCell(text: isMaintenance ? "-" : (room.paymentMethod ?? "Belum Input")),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: isMaintenance 
+                          ? const Center(child: Text("-")) 
+                          : Icon(room.isPaid ? Icons.check_circle : Icons.cancel, 
+                                 color: room.isPaid ? Colors.green : Colors.red, size: 20),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildStatusBadge(room.status),
+                    ),
+                    GestureDetector(
+                      onTap: () => _showVisibilityPopup(room),
+                      child: _TableCell(text: room.visibilityMode ?? "Public", isLink: true),
+                    ),
+                  ],
+                );
+              }).toList(),
             ],
           ),
         ],
@@ -125,54 +243,114 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildStatCard(String title, String count, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border(left: BorderSide(color: color, width: 5)),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  // Fungsi Pop-up dan Badge Status tetap sama seperti sebelumnya
+  void _showVisibilityPopup(Room room) {
+    // Controller untuk mengisi alasan kenapa tamu minta Incognito
+    TextEditingController reasonController = 
+        TextEditingController(text: room.visibilityDescription);
+    String tempMode = room.visibilityMode ?? "Public";
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Setting Visibilitas Kamar ${room.roomNumber}"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(title, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 10),
-            Text(count, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color)),
+            // Dropdown Pilih Mode
+            DropdownButtonFormField<String>(
+              value: tempMode,
+              items: const [
+                DropdownMenuItem(value: "Public", child: Text("Public")),
+                DropdownMenuItem(value: "Incognito", child: Text("Incognito")),
+              ],
+              onChanged: (val) => tempMode = val!,
+              decoration: const InputDecoration(
+                labelText: "Pilih Mode",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Input Alasan untuk laporan FO
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: "Keterangan FO (Alasan Incognito)",
+                border: OutlineInputBorder(),
+                hintText: "Contoh: Permintaan privasi tamu VIP",
+              ),
+              maxLines: 3,
+            ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text("Batal")
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B0000), // Warna Maroon Proyekmu
+            ),
+            onPressed: () async {
+              // Kirim data ke Laravel melalui ApiService
+              bool success = await ApiService().updateVisibility(
+                room.id, 
+                tempMode, 
+                reasonController.text
+              );
+
+              if (success) {
+                if (mounted) {
+                  Navigator.pop(context);
+                  _fetchData(); // Refresh data Dashboard agar status berubah
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Visibilitas berhasil diperbarui!"))
+                  );
+                }
+              }
+            },
+            child: const Text("Simpan", style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMenuCard(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF8B0000).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 32, color: const Color(0xFF8B0000)),
-            ),
-            const SizedBox(height: 15),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          ],
-        ),
-      ),
+  Widget _buildStatusBadge(String status) {
+    Color color;
+    switch (status.toLowerCase()) {
+      case 'terisi':
+      case 'occupied': color = const Color(0xFF8B0000); break;
+      case 'booking': color = Colors.orange; break;
+      case 'oo': color = Colors.black; break;
+      case 'os': color = Colors.grey; break;
+      default: color = Colors.green;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+      child: Text(status.toUpperCase(), textAlign: TextAlign.center, 
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+}
+
+class _TableCell extends StatelessWidget {
+  final String text;
+  final bool isHeader;
+  final bool isLink;
+  const _TableCell({required this.text, this.isHeader = false, this.isLink = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Text(text, style: TextStyle(
+        fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+        fontSize: 14, color: isLink ? Colors.blue : Colors.black,
+        decoration: isLink ? TextDecoration.underline : TextDecoration.none,
+      )),
     );
   }
 }
