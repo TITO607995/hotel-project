@@ -64,6 +64,8 @@ class Sidebar extends StatelessWidget {
                   Theme(
                     data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
+                      // Tambahkan Key agar Flutter tahu ini widget yang sama tapi perlu update status
+                      key: PageStorageKey<String>('kamar_tile'), 
                       initiallyExpanded: isRoomMenuOpen,
                       leading: const Icon(Icons.bed, color: Colors.white),
                       title: const Text(
@@ -71,6 +73,7 @@ class Sidebar extends StatelessWidget {
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
                       ),
                       trailing: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+                      // Gunakan onExpansionChanged jika ingin melakukan aksi saat menu dibuka manual
                       children: [
                         _buildSubMenu("Data Kamar", "room_data"),
                         _buildSubMenu("Setting Harga", "room_price_setting"),

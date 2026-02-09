@@ -5,7 +5,6 @@ import 'package:frontend/pages/registration_page.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/header.dart';
 import '../services/api_service.dart';
-import 'room_page.dart';
 
 class ReservasiPage extends StatefulWidget {
   const ReservasiPage({super.key});
@@ -15,7 +14,7 @@ class ReservasiPage extends StatefulWidget {
 }
 
 class _ReservasiPageState extends State<ReservasiPage> {
-  final String _currentView = "reservasi_create";
+  String _currentView = "reservasi_create";
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _countryController = TextEditingController();
@@ -124,7 +123,6 @@ class _ReservasiPageState extends State<ReservasiPage> {
               if (view == "dashboard") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardPage()));
               } 
-              // Navigasi ke sub-menu Reservasi
               else if (view == "reservasi_create") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ReservasiPage()));
               } 
@@ -134,9 +132,10 @@ class _ReservasiPageState extends State<ReservasiPage> {
               else if (view == "reservasi_data") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DataReservasiPage()));
               }
-              // Navigasi ke menu Kamar
               else if (view.startsWith("room_")) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RoomPage()));
+                setState(() {
+                  _currentView = view; 
+                });
               }
             },
           ),

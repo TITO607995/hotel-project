@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Ganti IP dengan IP Laptop kamu (cek via ipconfig di CMD)
-  static const String baseUrl = 'http://192.168.1.14:8000/api'; 
+  static const String baseUrl = 'http://172.20.120.13:8000/api'; 
 
   Future<bool> login(String email, String password) async {
     final response = await http.post(

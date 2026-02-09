@@ -82,7 +82,6 @@ class _RoomPageState extends State<RoomPage> {
               if (view == "dashboard") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardPage()));
               } 
-              // Navigasi ke sub-menu Reservasi
               else if (view == "reservasi_create") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ReservasiPage()));
               } 
@@ -92,9 +91,10 @@ class _RoomPageState extends State<RoomPage> {
               else if (view == "reservasi_data") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DataReservasiPage()));
               }
-              // Navigasi ke menu Kamar
               else if (view.startsWith("room_")) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RoomPage()));
+                setState(() {
+                  _currentView = view; 
+                });
               }
             },
           ),

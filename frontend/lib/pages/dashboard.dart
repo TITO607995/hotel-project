@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend/pages/data_reservasi_page.dart';
 import 'package:frontend/pages/registration_page.dart';
 import 'package:frontend/pages/reservation_page.dart';
-import 'package:frontend/pages/room_page.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/header.dart';
 import '../models/room_model.dart';
@@ -45,29 +44,18 @@ class _DashboardPageState extends State<DashboardPage> {
   String _getLeftStatus(Room room) {
     int currentHour = DateTime.now().hour;
     String status = room.status.toLowerCase();
-
-    // 1. Tentukan Garansi berdasarkan "Centang" (isPaid)
-    // Jika sudah bayar/centang = Guaranteed. Jika belum = Non-Garansi.
     bool isGuaranteed = room.isPaid; 
     bool isCheckIn = status == 'occupied' || status == 'terisi';
 
-    // A. JIKA SUDAH REGISTRASI (CHECK-IN)
     if (isCheckIn) {
-      // Logika Dirty (Jam 12:00 - 13:59)
       if (currentHour >= 12 && currentHour < 14) return "Dirty";
-      
-      // Setelah jam 14:00 Dirty hilang, jadi In-house
       return "Occupied In-house"; 
     } 
 
-    // B. JIKA MASIH BOOKING
     if (status == 'booking') {
       if (isGuaranteed) {
-        // Garansi: Hak In-house melekat (Booked In-house)
         return "Booked In-house"; 
       } else {
-        // Non-Garansi: Status Booked biasa
-        // Jika sudah masuk area "tengah malam" (00:00 - 06:00) belum bayar, siap cancel
         if (currentHour >= 0 && currentHour < 6) {
           return "Booked (Pending Cancel)"; 
         }
@@ -89,7 +77,6 @@ class _DashboardPageState extends State<DashboardPage> {
               if (view == "dashboard") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardPage()));
               } 
-              // Navigasi ke sub-menu Reservasi
               else if (view == "reservasi_create") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ReservasiPage()));
               } 
@@ -99,9 +86,10 @@ class _DashboardPageState extends State<DashboardPage> {
               else if (view == "reservasi_data") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DataReservasiPage()));
               }
-              // Navigasi ke menu Kamar
               else if (view.startsWith("room_")) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RoomPage()));
+                setState(() {
+                  _currentView = view; 
+                });
               }
             },
           ),

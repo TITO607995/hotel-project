@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend/pages/dashboard.dart';
 import 'package:frontend/pages/registration_page.dart';
 import 'package:frontend/pages/reservation_page.dart';
-import 'package:frontend/pages/room_page.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/header.dart';
 import '../services/api_service.dart';
@@ -15,7 +14,7 @@ class DataReservasiPage extends StatefulWidget {
 }
 
 class _DataReservasiPageState extends State<DataReservasiPage> {
-  final String _currentView = "reservasi_data";
+  String _currentView = "reservasi_data";
   List<dynamic> _allReservations = [];
   bool _isLoading = true;
 
@@ -42,12 +41,12 @@ class _DataReservasiPageState extends State<DataReservasiPage> {
     return Scaffold(
       body: Row(
         children: [
-          Sidebar(currentView: _currentView, 
-          onViewChanged: (view) {
+          Sidebar(
+            currentView: _currentView,
+            onViewChanged: (view) {
               if (view == "dashboard") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardPage()));
               } 
-              // Navigasi ke sub-menu Reservasi
               else if (view == "reservasi_create") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ReservasiPage()));
               } 
@@ -57,9 +56,10 @@ class _DataReservasiPageState extends State<DataReservasiPage> {
               else if (view == "reservasi_data") {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DataReservasiPage()));
               }
-              // Navigasi ke menu Kamar
               else if (view.startsWith("room_")) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RoomPage()));
+                setState(() {
+                  _currentView = view; 
+                });
               }
             },
           ),
